@@ -10,56 +10,44 @@ public class Main {
         CommandType typeToRemove;
 
         for (Command currentCommand : getAllCommands()) {
-            if (currentCommand.getCommandType() == CommandType.REBOOT_CHANNEL) {
-                if (!currentCommand.isAttemptsNumberExhausted()) {
-                    if (currentCommand.isTimeToSend()) {
-                        sendCommandToContext(ctx, lineAddress, currentCommand.getCommandText());
-                        try {
-                            AdminController.getInstance().processUssdMessage(
-                                    new DblIncomeUssdMessage(lineAddress.getHostName(),
-                                            lineAddress.getPort(),
-                                            0,
-                                            EnumGoip.getByModel(getGoipModel()),
-                                            currentCommand.getCommandText()),
-                                    false);
-                        } catch (Exception ignored) {
-                        }
-                        currentCommand.setSendDate(new Date());
-                        Log.ussd.write(String.format("sent: ip: %s; порт: %d; %s",
-                                lineAddress.getHostString(),
-                                lineAddress.getPort(),
-                                currentCommand.getCommandText()));
-                        currentCommand.incSendCounter();
-                    }
-                } else {
-                    typeToRemove = currentCommand.getCommandType();
-                    deleteCommand(typeToRemove);
-                }
-            } else {
-                if (!currentCommand.isAttemptsNumberExhausted()) {
-                    sendCommandToContext(ctx, lineAddress, currentCommand.getCommandText());
-                    try {
-                        AdminController.getInstance().processUssdMessage(
-                                new DblIncomeUssdMessage(lineAddress.getHostName(),
-                                        lineAddress.getPort(),
-                                        0,
-                                        EnumGoip.getByModel(getGoipModel()),
-                                        currentCommand.getCommandText()),
-                                false);
-                    } catch (Exception ignored) {
-                    }
-                    Log.ussd.write(String.format("sent: ip: %s; порт: %d; %s",
-                            lineAddress.getHostString(), lineAddress.getPort(), currentCommand.getCommandText()));
-                    currentCommand.setSendDate(new Date());
-                    currentCommand.incSendCounter();
-                } else {
-                    typeToRemove = currentCommand.getCommandType();
-                    deleteCommand(typeToRemove);
-                }
-            }
+            sendCommand(ctx, lineAddress, currentCommand);
         }
         sendKeepAliveOkAndFlush(ctx);
     }
+
+    private void sendCommand(ChannelHandlerContext ctx,InetSocketAddress lineAddress, Command command) {
+        if (!command.isAttemptsNumberExhausted()) {
+            sendCommandToContext(ctx, lineAddress, command.getCommandText());
+            try {
+                createProcessUssdMessage(lineAddress, command);
+            } catch (Exception ignored) {
+            }
+            Log.ussd.write(String.format("sent: ip: %s; порт: %d; %s",
+                    lineAddress.getHostString(),
+                    lineAddress.getPort(),
+                    command.getCommandText()));
+            command.setSendDate(new Date());
+            command.incSendCounter();
+        } else {
+            removeCommand(command);
+        }
+    }
+
+    private void removeCommand(Command command) {
+        typeToRemove = command.getCommandType();
+        deleteCommand(typeToRemove);
+    }
+
+    private void createProcessUssdMessage(InetSocketAddress lineAddress, Command command) {
+        AdminController.getInstance().processUssdMessage(
+                new DblIncomeUssdMessage(lineAddress.getHostName(),
+                        lineAddress.getPort(),
+                        0,
+                        EnumGoip.getByModel(getGoipModel()),
+                        currentCommand.getCommandText()),
+                false);
+    }
+
 
 }
 
